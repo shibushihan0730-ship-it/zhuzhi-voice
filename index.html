@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>逐字 · VOICE</title>
+<style>
+:root{--bg:#0b1220;--panel:#111c2d;--panel2:#172438;--line:#29384d;--ink:#e9e3d5;--muted:#91a0b5;--gold:#d6a34a;--red:#df7770;--green:#83b99b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,textarea{font:inherit}button{border:1px solid var(--line);background:#1a2940;color:var(--ink);border-radius:12px;padding:10px 13px;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}button.primary{background:var(--gold);color:#101827;border-color:var(--gold);font-weight:750}button.danger{color:#f1aaa3;border-color:#754b50;background:#2a202b}button.ghost{background:transparent}button.small{padding:6px 9px;font-size:13px;border-radius:9px}
+header{max-width:980px;margin:auto;padding:22px 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:800;letter-spacing:.08em;font-size:22px}.brand span{color:var(--gold)}.sub{font-size:11px;letter-spacing:.18em;color:var(--muted)}
+main{max-width:980px;margin:auto;padding:8px 18px 56px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:17px;margin:13px 0}
+h2{font-size:15px;margin:0 0 12px;letter-spacing:.04em}.hint{color:var(--muted);font-size:12px}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.between{justify-content:space-between}
+textarea{width:100%;min-height:150px;resize:vertical;background:#0d1727;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:13px;outline:none}textarea:focus,input:focus{border-color:var(--gold)}
+input[type=text]{background:#0d1727;color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px;min-width:0}
+.pill{font-size:11px;padding:3px 8px;border-radius:99px;background:#26364a;color:var(--muted)}.pill.done{color:var(--green);background:#1d332e}.pill.pending{color:#d7b46f;background:#342d20}.pill.edited{color:#e7a39b;background:#38262a}
+.progress{height:5px;background:#26364a;border-radius:10px;overflow:hidden;margin-top:10px}.progress>i{display:block;height:100%;background:var(--gold);width:0}
+.sentences{display:grid;gap:9px}.sentence{background:#0e1929;border:1px solid var(--line);border-radius:13px;padding:12px}.sentence.active{border-color:var(--gold);box-shadow:0 0 0 1px #d6a34a33}.sentenceText{font-size:15px;margin:8px 0 11px;white-space:pre-wrap;overflow-wrap:anywhere}.num{color:var(--gold);font-size:12px;font-weight:750;letter-spacing:.08em}.actions{display:flex;gap:6px;flex-wrap:wrap}.status{font-size:12px;color:var(--muted)}
+.recorder{text-align:center;padding:18px 10px}.currentText{font-size:clamp(20px,5vw,29px);line-height:1.55;max-width:720px;margin:15px auto 20px}.timer{font-variant-numeric:tabular-nums;font-size:34px;letter-spacing:.06em;color:var(--gold);font-weight:650}.meter{height:5px;background:#28384c;border-radius:10px;overflow:hidden;margin:15px auto;max-width:360px}.meter i{display:block;height:100%;width:0;background:var(--gold);transition:width .15s}
+.empty{text-align:center;color:var(--muted);padding:24px 8px}.footerNote{color:var(--muted);font-size:12px;margin-top:12px}
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:16px;max-width:560px;width:calc(100% - 28px);padding:20px}dialog::backdrop{background:#02060dcc}dialog textarea{min-height:110px}
+@media(min-width:720px){.workspace{display:grid;grid-template-columns:1.15fr .85fr;gap:13px}.workspace .panel{margin:0}.wide{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header><div><div class="brand">逐字 <span>· VOICE</span></div><div class="sub">SCRIPT / RECORDING STUDIO</div></div><div class="row"><span class="pill" id="saveState">本地自动保存</span><button class="small ghost" id="helpBtn">使用说明</button></div></header>
+<main>
+<section class="panel">
+  <div class="row between"><h2>01 / 文案工作区</h2><span class="hint">标点自动断句 · 可手动调整</span></div>
+  <textarea id="scriptInput" placeholder="把你的口播文案粘贴到这里……&#10;&#10;例如：我们总以为自己了解自己。我们笃定自己善良、友善、正直，却很少认真思考：每个人都藏着一面阴影。"></textarea>
+  <div class="row between" style="margin-top:10px">
+    <div class="row"><button class="primary" id="splitBtn">识别标点并拆分</button><button id="appendBtn">添加一句</button></div>
+    <div class="row"><button class="small" id="backupBtn">导出项目备份</button><button class="small" id="restoreBtn">恢复备份</button><input id="restoreFile" type="file" accept=".json,application/json" hidden></div>
+  </div>
+  <div class="footerNote">拆分会以句号、问号、感叹号、分号及换行作为断句依据；逗号默认保留在同一句中。</div>
+</section>
+
+<div class="workspace">
+<section class="panel">
+  <div class="row between"><h2>02 / 逐句管理</h2><span class="hint" id="countLabel">0 句</span></div>
+  <div class="progress"><i id="progressBar"></i></div>
+  <div class="row between" style="margin:9px 0 12px"><span class="hint" id="progressLabel">尚未录制</span><span class="hint">点击句子可载入录音区</span></div>
+  <div class="sentences" id="sentenceList"><div class="empty">导入文案并拆分后，这里会显示每一句。</div></div>
+</section>
+<section class="panel">
+  <div class="row between"><h2>03 / 当前录音</h2><span class="pill pending" id="recStatus">等待录音</span></div>
+  <div class="recorder">
+    <div class="num" id="currentNum">NO. --</div>
+    <div class="currentText" id="currentText">请先导入文案并选择一句。</div>
+    <div class="timer" id="timer">00:00</div>
+    <div class="meter"><i id="meterBar"></i></div>
+    <div class="row" style="justify-content:center">
+      <button class="primary" id="recordBtn" disabled>● 开始录音</button>
+      <button id="stopBtn" disabled>停止并保存</button>
+    </div>
+    <div class="row" style="justify-content:center;margin-top:10px">
+      <button id="playBtn" disabled>▶ 试听本句</button><button id="redoBtn" disabled>重新录制</button>
+    </div>
+    <div class="row between" style="margin-top:20px">
+      <button class="ghost" id="prevBtn" disabled>← 上一句</button>
+      <span class="hint" id="positionLabel">0 / 0</span>
+      <button class="ghost" id="nextBtn" disabled>下一句 →</button>
+    </div>
+    <div class="footerNote">录音前请允许浏览器使用麦克风。录音结束后会自动保存到当前浏览器。</div>
+  </div>
+</section>
+<section class="panel wide">
+  <div class="row between"><h2>04 / 音频导出</h2><span class="hint">导出前请确认录音顺序</span></div>
+  <div class="row">
+    <button id="exportAllBtn" class="primary">导出全部独立音频</button>
+    <button id="mergeBtn">生成完整口播 WAV</button>
+  </div>
+  <div class="footerNote" id="exportInfo">独立音频将逐句下载；完整音频会按当前句子顺序合并。浏览器可能会询问是否允许多个文件下载。</div>
+</section>
+</div>
+<div class="footerNote" style="text-align:center;padding:12px 0">逐字 · VOICE　／　录音数据默认保存在本设备浏览器中</div>
+</main>
+
+<dialog id="editDialog"><h2>编辑这句话</h2><textarea id="editText"></textarea><div class="row between" style="margin-top:12px"><button class="ghost" id="cancelEdit">取消</button><button class="primary" id="saveEdit">保存修改</button></div></dialog>
+<dialog id="helpDialog"><h2>使用说明</h2><p>1. 粘贴整篇文案，点击「识别标点并拆分」。</p><p>2. 在句子列表中选择一句，点击「开始录音」，读完后点击「停止并保存」。</p><p>3. 可以试听、重新录制、编辑、删除、添加或调整句子顺序。</p><p>4. 导出独立音频会逐句下载；生成完整口播会将已有录音按当前顺序合并为 WAV。</p><p>5. 建议定期点击「导出项目备份」。备份包含文案和录音，可在其他设备或清理浏览器数据后恢复。</p><p class="hint">注意：关闭网页或切换应用时，录音中的内容不会自动结束保存，请先点击停止。浏览器本地存储可能受系统清理影响，备份文件是最稳妥的额外保障。</p><div class="row" style="justify-content:flex-end"><button class="primary" id="closeHelp">知道了</button></div></dialog>
+
+<script>
+(()=> {
+'use strict';
+const $=id=>document.getElementById(id);
+const DB_NAME='zhuzhi_voice_db', STORE='projects', PROJECT='default';
+let db, sentences=[], currentId=null, recorder=null, chunks=[], startedAt=0, timerHandle=null, elapsed=0, stream=null, playbackUrl=null, recording=false;
+const uid=()=> 's_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+function saveDB(){if(!db)return;const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put({id:PROJECT,sentences:sentences.map(s=>({...s,audio:s.audio?{blob:s.audio.blob,type:s.audio.type}:null}))});$('saveState').textContent='正在保存…';tx.oncomplete=()=>$('saveState').textContent='已自动保存';tx.onerror=()=>$('saveState').textContent='保存失败';}
+async function loadDB(){try{db=await openDB();const tx=db.transaction(STORE,'readonly');const req=tx.objectStore(STORE).get(PROJECT);req.onsuccess=()=>{if(req.result?.sentences){sentences=req.result.sentences;currentId=sentences[0]?.id||null;render();}};}catch(e){$('saveState').textContent='本地存储不可用';}}
+function splitText(text){return text.replace(/\r/g,'\n').split(/(?<=[。！？!?；;…])\s*|\n+/u).map(x=>x.trim()).filter(Boolean);}
+function countDone(){return sentences.filter(s=>s.audio&&!s.stale).length;}
+function render(){
+ const list=$('sentenceList');list.innerHTML='';
+ if(!sentences.length)list.innerHTML='<div class="empty">导入文案并拆分后，这里会显示每一句。</div>';
+ sentences.forEach((s,i)=>{
+  const el=document.createElement('div');el.className='sentence'+(s.id===currentId?' active':'');
+  const badge=s.audio?(s.stale?'<span class="pill edited">文字已修改</span>':'<span class="pill done">已录制</span>'):'<span class="pill pending">未录制</span>';
+  el.innerHTML=`<div class="row between"><span class="num">第 ${String(i+1).padStart(2,'0')} 句</span>${badge}</div><div class="sentenceText"></div><div class="row between"><span class="status">${s.audio?`音频：${s.audio.blob.size>0?'已保存':'空文件'}`:'等待录音'}</span><div class="actions"><button class="small" data-act="select">选择</button><button class="small" data-act="edit">编辑</button><button class="small" data-act="up" ${i===0?'disabled':''}>↑</button><button class="small" data-act="down" ${i===sentences.length-1?'disabled':''}>↓</button><button class="small" data-act="add">＋</button><button class="small danger" data-act="del">删除</button></div></div>`;
+  el.querySelector('.sentenceText').textContent=s.text;
+  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b){select(s.id);return;}const a=b.dataset.act;if(a==='select')select(s.id);if(a==='edit')edit(s.id);if(a==='up')move(i,-1);if(a==='down')move(i,1);if(a==='add')addAfter(i);if(a==='del')remove(i);});
+  list.appendChild(el);
+ });
+ const done=countDone(), total=sentences.length;
+ $('countLabel').textContent=`${total} 句 · 已录制 ${done} 句`;
+ $('progressLabel').textContent=total?`录制完成 ${done} / ${total} 句`:'尚未录制';
+ $('progressBar').style.width=total?(done/total*100)+'%':'0%';
+ updateCurrent();saveDB();
+}
+function updateCurrent(){
+ const i=sentences.findIndex(s=>s.id===currentId),s=sentences[i];
+ $('currentNum').textContent=s?`NO. ${String(i+1).padStart(2,'0')}`:'NO. --';
+ $('currentText').textContent=s?s.text:'请先导入文案并选择一句。';
+ $('positionLabel').textContent=s?`${i+1} / ${sentences.length}`:'0 / 0';
+ $('prevBtn').disabled=!s||i<=0;$('nextBtn').disabled=!s||i>=sentences.length-1;
+ $('recordBtn').disabled=!s||recording;$('stopBtn').disabled=!recording;
+ $('playBtn').disabled=!s||!s.audio||recording;$('redoBtn').disabled=!s||recording;
+ $('recStatus').textContent=recording?'正在录音':s?.audio?(s.stale?'文字已修改':'已录制'):'等待录音';
+ $('recStatus').className='pill '+(recording?'edited':s?.audio&&!s.stale?'done':'pending');
+}
+function select(id){if(recording)return;currentId=id;render();}
+function edit(id){const s=sentences.find(x=>x.id===id);if(!s)return;$('editText').value=s.text;$('editDialog').dataset.id=id;$('editDialog').showModal();}
+function addAfter(i){const text=prompt('请输入新句子的内容：');if(text===null||!text.trim())return;const s={id:uid(),text:text.trim(),audio:null,stale:false};sentences.splice(i+1,0,s);currentId=s.id;render();}
+function remove(i){if(recording)return;if(!confirm('确定删除这句话及其对应录音吗？'))return;const gone=sentences.splice(i,1)[0];if(currentId===gone.id)currentId=sentences[Math.min(i,sentences.length-1)]?.id||null;render();}
+function move(i,d){if(recording)return;const j=i+d;if(j<0||j>=sentences.length)return;[sentences[i],sentences[j]]=[sentences[j],sentences[i]];render();}
+function setTimer(){clearInterval(timerHandle);timerHandle=setInterval(()=>{elapsed=Math.floor((Date.now()-startedAt)/1000);$('timer').textContent=fmt(elapsed);$('meterBar').style.width=((elapsed%10)*10)+'%';},200);}
+function fmt(n){return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');}
+async function startRecording(){
+ const s=sentences.find(x=>x.id===currentId);if(!s||recording)return;
+ try{
+  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)throw new Error('当前浏览器不支持网页录音，请使用较新的 Chrome 浏览器，并通过 HTTPS 或本地文件环境打开。');
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+  const mime=['audio/webm;codecs=opus','audio/ogg;codecs=opus','audio/webm','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t));
+  recorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
+  chunks=[];recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);};
+  recorder.onstop=()=>{const blob=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});s.audio={blob,type:blob.type};s.stale=false;stopTracks();recording=false;clearInterval(timerHandle);$('meterBar').style.width='0';$('timer').textContent=fmt(Math.floor((Date.now()-startedAt)/1000));render();};
+  recorder.start();recording=true;startedAt=Date.now();elapsed=0;$('timer').textContent='00:00';setTimer();updateCurrent();
+ }catch(e){alert('无法开始录音：'+e.message);stopTracks();}
+}
+function stopTracks(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
+function stopRecording(){if(recorder&&recording){recorder.stop();$('stopBtn').disabled=true;}}
+function playCurrent(){const s=sentences.find(x=>x.id===currentId);if(!s?.audio)return;if(playbackUrl)URL.revokeObjectURL(playbackUrl);playbackUrl=URL.createObjectURL(s.audio.blob);const a=new Audio(playbackUrl);a.play().catch(e=>alert('无法播放：'+e.message));}
+function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+function safeName(t){return t.replace(/[\\/:*?"<>|]/g,'_').slice(0,24)||'sentence';}
+async function exportSingles(){const valid=sentences.filter(s=>s.audio);if(!valid.length){alert('目前还没有录音。');return;}for(let i=0;i<valid.length;i++){const s=valid[i],n=sentences.indexOf(s)+1;download(s.audio.blob,`${String(n).padStart(2,'0')}_${safeName(s.text)}.${ext(s.audio.type)}`);await new Promise(r=>setTimeout(r,250));}}
+function ext(type){return type.includes('ogg')?'ogg':type.includes('mp4')?'m4a':'webm';}
+async function mergeWav(){
+ const valid=sentences.filter(s=>s.audio&&!s.stale);if(!valid.length){alert('没有可合并的有效录音。');return;}
+ if(valid.length!==sentences.length&&!confirm(`当前有 ${sentences.length-valid.length} 句没有有效录音（包括未录制或修改过文字的句子）。继续仅合并已录制的 ${valid.length} 句吗？`))return;
+ $('mergeBtn').disabled=true;$('mergeBtn').textContent='正在合并…';
+ try{
+  const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)throw new Error('浏览器不支持音频处理。');
+  const ctx=new Ctx(),buffers=[];
+  for(const s of valid){const ab=await s.audio.blob.arrayBuffer();buffers.push(await ctx.decodeAudioData(ab));}
+  const rate=ctx.sampleRate,channels=Math.max(...buffers.map(b=>b.numberOfChannels)),length=buffers.reduce((n,b)=>n+b.length,0);
+  const out=ctx.createBuffer(channels,length,rate);let offset=0;
+  for(const b of buffers){for(let c=0;c<channels;c++){const src=b.getChannelData(Math.min(c,b.numberOfChannels-1));out.getChannelData(c).set(src,offset);}offset+=b.length;}
+  const wav=encodeWav(out);download(wav,'逐字_完整口播.wav');await ctx.close();
+  $('exportInfo').textContent=`合并完成：${valid.length} 句，WAV，${fmt(Math.round(length/rate))}。`;
+ }catch(e){alert('合并失败：'+e.message+'。可以先导出独立音频。');}
+ finally{$('mergeBtn').disabled=false;$('mergeBtn').textContent='生成完整口播 WAV';}
+}
+function encodeWav(buffer){
+ const channels=buffer.numberOfChannels,samples=buffer.length,rate=buffer.sampleRate,bytes=2,block=channels*bytes,buf=new ArrayBuffer(44+samples*block),v=new DataView(buf);
+ const str=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+ str(0,'RIFF');v.setUint32(4,36+samples*block,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,channels,true);v.setUint32(24,rate,true);v.setUint32(28,rate*block,true);v.setUint16(32,block,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,samples*block,true);
+ let p=44;for(let i=0;i<samples;i++)for(let c=0;c<channels;c++){let x=Math.max(-1,Math.min(1,buffer.getChannelData(c)[i]));v.setInt16(p,x<0?x*32768:x*32767,true);p+=2;}
+ return new Blob([buf],{type:'audio/wav'});
+}
+$('splitBtn').onclick=()=>{if(recording)return;const parts=splitText($('scriptInput').value);if(!parts.length){alert('请先粘贴口播文案。');return;}if(sentences.length&&!confirm('重新拆分会替换当前句子列表及其录音。建议先导出项目备份。继续吗？'))return;sentences=parts.map(text=>({id:uid(),text,audio:null,stale:false}));currentId=sentences[0].id;render();};
+$('appendBtn').onclick=()=>{const text=prompt('请输入新句子的内容：');if(text===null||!text.trim())return;const s={id:uid(),text:text.trim(),audio:null,stale:false};sentences.push(s);currentId=s.id;render();};
+$('recordBtn').onclick=startRecording;$('stopBtn').onclick=stopRecording;$('playBtn').onclick=playCurrent;$('redoBtn').onclick=()=>{const s=sentences.find(x=>x.id===currentId);if(s){if(!confirm('重新录制会替换当前句子的旧录音，确定继续吗？'))return;s.audio=null;s.stale=false;render();startRecording();}};
+$('prevBtn').onclick=()=>{const i=sentences.findIndex(s=>s.id===currentId);if(i>0)select(sentences[i-1].id);};$('nextBtn').onclick=()=>{const i=sentences.findIndex(s=>s.id===currentId);if(i<sentences.length-1)select(sentences[i+1].id);};
+$('saveEdit').onclick=()=>{const s=sentences.find(x=>x.id===$('editDialog').dataset.id),v=$('editText').value.trim();if(s&&v){if(v!==s.text&&s.audio)s.stale=true;s.text=v;render();}$('editDialog').close();};
+$('cancelEdit').onclick=()=>$('editDialog').close();
+$('exportAllBtn').onclick=exportSingles;$('mergeBtn').onclick=mergeWav;
+$('backupBtn').onclick=async()=>{const payload={app:'逐字VOICE',version:1,createdAt:new Date().toISOString(),sentences:[]};for(const s of sentences){payload.sentences.push({id:s.id,text:s.text,stale:!!s.stale,audio:s.audio?{type:s.audio.type,data:await blobToBase64(s.audio.blob)}:null});}download(new Blob([JSON.stringify(payload)],{type:'application/json'}),'逐字_VOICE_项目备份.json');};
+function blobToBase64(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]);r.onerror=reject;r.readAsDataURL(blob);});}
+$('restoreBtn').onclick=()=>$('restoreFile').click();
+$('restoreFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!Array.isArray(data.sentences))throw new Error('备份文件格式不正确');if(recording)throw new Error('请先结束录音');if(sentences.length&&!confirm('恢复备份会替换当前项目。建议先备份当前内容。继续吗？'))return;sentences=data.sentences.map(s=>({id:s.id||uid(),text:String(s.text||''),stale:!!s.stale,audio:s.audio?{type:s.audio.type||'audio/webm',blob:base64ToBlob(s.audio.data,s.audio.type)}:null}));currentId=sentences[0]?.id||null;render();alert('项目恢复成功。');}catch(err){alert('恢复失败：'+err.message);}finally{e.target.value='';}};
+function base64ToBlob(b64,type){const bin=atob(b64),arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);return new Blob([arr],{type:type||'application/octet-stream'});}
+$('helpBtn').onclick=()=>$('helpDialog').showModal();$('closeHelp').onclick=()=>$('helpDialog').close();
+window.addEventListener('beforeunload',e=>{if(recording){e.preventDefault();e.returnValue='';}});
+loadDB();
+})();
+</script>
+</body>
+</html>
