@@ -1,0 +1,9 @@
+{
+  "appId": "com.zhuzhivoice.app",
+  "appName": "逐字 VOICE",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
