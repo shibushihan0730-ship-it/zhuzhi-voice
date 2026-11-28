@@ -1,0 +1,12 @@
+{
+  "name": "逐字 VOICE",
+  "short_name": "逐字VOICE",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "description": "口播逐句录音工作台",
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
